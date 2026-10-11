@@ -25,13 +25,19 @@ A Streamlit web app that identifies fruits and vegetables from a photo using a t
 
 apple, banana, beetroot, bell pepper, cabbage, capsicum, carrot, cauliflower, chilli pepper, corn, cucumber, eggplant, garlic, ginger, grapes, jalepeno, kiwi, lemon, lettuce, mango, onion, orange, paprika, pear, peas, pineapple, pomegranate, potato, raddish, soy beans, spinach, sweetcorn, sweetpotato, tomato, turnip, watermelon
 
-> **Important:** class order in `app.py` (`CLASSES`) must match `train_ds.class_names` from your training notebook. A mismatch gives wrong labels with high confidence.
+> **Important:** labels are loaded from `class_names.json`, not hardcoded. It must be the exact `train_ds.class_names` from training. Regenerate it with:
+> ```python
+> import json
+> json.dump(train_ds.class_names, open('class_names.json', 'w'))
+> ```
+> The app refuses to start if the label count does not match the model's output size.
 
 ## Project Structure
 
 ```
 Fruits_Veg_dataset/
 ├── app.py
+├── class_names.json         # class labels, in training order
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
@@ -80,7 +86,7 @@ Supported extensions: `jpg`, `jpeg`, `png`, `webp`. Classes without an image fal
 
 | Issue | Fix |
 |---|---|
-| Wrong labels, high confidence | Fix class order in `CLASSES` to match training |
+| Wrong labels, high confidence | Regenerate `class_names.json` from `train_ds.class_names` |
 | `load_model` version error | Pin the same `tensorflow` / `keras` versions as training |
 | Low accuracy on your photos | Use a clear, well-lit photo with a single item in frame |
 | TensorFlow info/warning logs in terminal | Harmless (oneDNN, CPU instructions, no GPU on Windows) |

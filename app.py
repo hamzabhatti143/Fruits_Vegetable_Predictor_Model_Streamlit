@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -9,9 +10,10 @@ MODEL_PATH = "model/Fruits_Veg_Model_Data.keras"
 REF_DIR = Path("reference_images")  # optional: reference_images/apple.jpg, banana.png, ...
 IMG_SIZE = (180, 180)  # from model config: input (None, 180, 180, 3)
 
-# 36 classes, alphabetical = default order of image_dataset_from_directory.
-# [unverified] Confirm against `train_ds.class_names` in your training notebook.
-CLASSES = {
+CLASS_FILE = Path("class_names.json")  # source of truth: saved from training (train_ds.class_names)
+
+# Display-only metadata. Not used for prediction; unknown classes fall back to a default emoji.
+EMOJI = {
     "apple": "🍎", "banana": "🍌", "beetroot": "🟣", "bell pepper": "🫑",
     "cabbage": "🥬", "capsicum": "🫑", "carrot": "🥕", "cauliflower": "🥦",
     "chilli pepper": "🌶️", "corn": "🌽", "cucumber": "🥒", "eggplant": "🍆",
@@ -22,9 +24,9 @@ CLASSES = {
     "raddish": "🔴", "soy beans": "🌱", "spinach": "🥬", "sweetcorn": "🌽",
     "sweetpotato": "🍠", "tomato": "🍅", "turnip": "⚪", "watermelon": "🍉",
 }
-CLASS_NAMES = list(CLASSES)
 FRUITS = {"apple", "banana", "grapes", "kiwi", "lemon", "mango", "orange",
           "pear", "pineapple", "pomegranate", "watermelon"}
+DEFAULT_EMOJI = "🥗"
 
 st.set_page_config(page_title="Fruits & Veg Classifier", page_icon="🥗", layout="wide")
 
@@ -82,10 +84,28 @@ def reference_image(name: str):
     return None
 
 
+@st.cache_data
+def load_class_names():
+    return json.loads(CLASS_FILE.read_text(encoding="utf-8"))
+
+
 model = load_model()
-assert model.output_shape[-1] == len(CLASS_NAMES), (
-    f"Model outputs {model.output_shape[-1]} classes but CLASS_NAMES has {len(CLASS_NAMES)}"
-)
+
+if not CLASS_FILE.exists():
+    st.error(
+        "`class_names.json` not found. Run this once in your training notebook and copy "
+        "the file next to `app.py`:\n\n"
+        "```python\nimport json\njson.dump(train_ds.class_names, open('class_names.json', 'w'))\n```"
+    )
+    st.stop()
+
+CLASS_NAMES = load_class_names()
+if model.output_shape[-1] != len(CLASS_NAMES):
+    st.error(
+        f"Model outputs {model.output_shape[-1]} classes but class_names.json has "
+        f"{len(CLASS_NAMES)}. The file does not belong to this model."
+    )
+    st.stop()
 
 file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png", "webp"])
 
@@ -110,7 +130,7 @@ if file:
         if ref:
             st.image(str(ref), width=260)
         else:
-            st.markdown(f'<div class="card"><div class="emoji">{CLASSES[best]}</div></div>',
+            st.markdown(f'<div class="card"><div class="emoji">{EMOJI.get(best, DEFAULT_EMOJI)}</div></div>',
                         unsafe_allow_html=True)
 
         if conf < 0.5:
@@ -130,7 +150,7 @@ if file:
         for i in top3:
             name = CLASS_NAMES[i]
             st.markdown(
-                f'<div class="row"><span>{CLASSES[name]}</span><span>{name}</span>'
+                f'<div class="row"><span>{EMOJI.get(name, DEFAULT_EMOJI)}</span><span>{name}</span>'
                 f'<span class="pct">{probs[i]:.1%}</span></div>',
                 unsafe_allow_html=True,
             )
